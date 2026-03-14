@@ -11,7 +11,7 @@ import UIKit
 import AVFAudio
 
 fileprivate let APP_FONT_NAME = "Mamelon" // PostScript name of Mamelon.otf (Regular)
-// Make sure Mamelon.otf is added to the target and listed under UIAppFonts in Info
+// Make sure Mamelon.otf is added to the target and listed under UIAppFonts in Info＠
 
 fileprivate extension Font {
     /// App font with CJK fallback so missing Chinese glyphs are displayed using PingFang TC.
@@ -480,9 +480,6 @@ struct ContentView: View {
     @State private var scoreManager = ScoreManager()
 
     @State private var lastAchievement: Achievement = .none
-    @State private var showClap: Bool = false
-    @State private var clapBurstID: UUID = UUID()
-    @State private var pendingAchievementToShow: Achievement? = nil
     @State private var showAchievementMessage: Bool = false
     @State private var particles: [Particle] = []
     
@@ -504,10 +501,6 @@ struct ContentView: View {
                     .ignoresSafeArea()
             )
             .overlay(alignment: .center) {
-                if showClap {
-                    ClapBurstView(id: clapBurstID)
-                        .transition(.scale.combined(with: .opacity))
-                }
                 if !particles.isEmpty {
                     ParticleBurstView(particles: particles)
                 }
@@ -924,19 +917,6 @@ struct ContentView: View {
             }
         }
     }
-
-    private func triggerClap() {
-        clapBurstID = UUID() // reset animation
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-            showClap = true
-        }
-        // Auto hide after delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            withAnimation(.easeOut(duration: 0.4)) {
-                showClap = false
-            }
-        }
-    }
     
     private func createExplosion() {
 
@@ -974,106 +954,6 @@ struct ContentView: View {
     }
 }
 
-fileprivate struct ClapBurstView: View {
-    let id: UUID
-    @State private var animate = false
-
-    var body: some View {
-        ZStack {
-            // Radial glow
-            Circle()
-                .fill(GameNeonTheme.neonPrimary.opacity(0.15))
-                .frame(width: animate ? 280 : 40, height: animate ? 280 : 40)
-                .blur(radius: 30)
-                .animation(.easeOut(duration: 0.8), value: animate)
-
-            // Central clap emoji
-            Text("👏")
-                .font(.appFont(size: animate ? 96 : 24, relativeTo: .title))
-                .shadow(color: GameNeonTheme.neonSecondary.opacity(0.8), radius: 10)
-                .scaleEffect(animate ? 1.0 : 0.2)
-                .animation(.spring(response: 0.5, dampingFraction: 0.7), value: animate)
-
-            // Simple particles (stars)
-            ForEach(0..<10, id: \.self) { i in
-                StarParticle(index: i, animate: animate)
-            }
-        }
-        .onAppear { animate = true }
-        .id(id)
-    }
-}
-
-fileprivate struct StarParticle: View {
-    let index: Int
-    let animate: Bool
-
-    var angle: Double { Double(index) / 10.0 * .pi * 2 }
-    var distance: CGFloat { animate ? 140 : 0 }
-
-    var body: some View {
-        Image(systemName: "sparkle")
-            .foregroundStyle(GameNeonTheme.neonAccent)
-            .shadow(color: GameNeonTheme.neonAccent.opacity(0.9), radius: 6)
-            .rotationEffect(.radians(angle))
-            .offset(x: cos(angle) * distance, y: sin(angle) * distance)
-            .scaleEffect(animate ? 1.0 : 0.2)
-            .opacity(animate ? 1.0 : 0)
-            .animation(.easeOut(duration: 0.8).delay(0.02 * Double(index)), value: animate)
-    }
-}
-
-fileprivate struct FireworksView: View {
-    @State private var bursts: [FireworkSpawn] = []
-    @State private var timer: Timer? = nil
-    let colors: [Color] = [.red, .yellow, .cyan, .green, .orange, .pink, GameNeonTheme.neonAccent]
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                ForEach(bursts) { spawn in
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .compositingGroup()
-            .onAppear {
-                startSpawning(in: geo.size)
-            }
-            .onDisappear {
-                stopSpawning()
-            }
-        }
-        .allowsHitTesting(false)
-    }
-
-    private func startSpawning(in size: CGSize) {
-        bursts.removeAll()
-        stopSpawning()
-        // Spawn a new burst every 0.25s for ~4s (about 16 bursts) at random positions
-        var count = 0
-        timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { t in
-            let x = CGFloat.random(in: size.width * 0.15...size.width * 0.85)
-            let y = CGFloat.random(in: size.height * 0.2...size.height * 0.8)
-            let color = colors.randomElement() ?? .white
-            let spawn = FireworkSpawn(position: CGPoint(x: x, y: y), color: color)
-            bursts.append(spawn)
-            // keep list short
-            if bursts.count > 20 { bursts.removeFirst() }
-            count += 1
-            if count >= 16 { // ~4 seconds
-                t.invalidate()
-                timer = nil
-            }
-        }
-        RunLoop.main.add(timer!, forMode: .common)
-    }
-
-    private func stopSpawning() {
-        timer?.invalidate()
-        timer = nil
-    }
-}
-
 fileprivate struct ParticleBurstView: View {
 
     let particles: [Particle]
@@ -1106,12 +986,6 @@ fileprivate struct ParticleBurstView: View {
         .blendMode(.screen)
         .allowsHitTesting(false)
     }
-}
-
-fileprivate struct FireworkSpawn: Identifiable {
-    let id = UUID()
-    let position: CGPoint
-    let color: Color
 }
 
 fileprivate struct Particle: Identifiable {
